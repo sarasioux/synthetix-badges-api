@@ -1,3 +1,5 @@
+const siteUrl = 'http://localhost:8080/badges/';
+
 const express = require('express');
 const router = express.Router();
 
@@ -19,7 +21,7 @@ router.get('/:address', function(req, res, next) {
             console.log('badges', badges);
             let returnBadges = []
             for(let i in badges) {
-                returnBadges.push(i);
+                returnBadges.push(siteUrl + i + '.json');
             }
             res.json(returnBadges);
         });
