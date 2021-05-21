@@ -31,7 +31,8 @@ app.use(function (req, res, next) {
 });
 
 app.use('/', indexRouter);
-app.use('/:address', indexRouter);
+app.use('/badges/:address', indexRouter);
+app.use('/badge/:address', indexRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -46,7 +47,7 @@ app.use(function(err, req, res, next) {
   
   // render the error page
   res.status(err.status || 500);
-  res.render('error');
+  res.json({ error: err })
 });
 
 module.exports = app;

@@ -1,36 +1,128 @@
-const siteUrl = 'http://localhost:8080/badges/';
-
 const express = require('express');
+const fetch = require('node-fetch');
+const await = require('asyncawait');
+const Web3 = require('web3');
+const TruffleContract = require("@truffle/contract");
+
+// Constants
+const siteUrl = 'http://localhost:8080/';
+const provider = 'wss://kovan.infura.io/ws/v3/8f868fcca6aa44febce5b6a085aa23f2';
+const contractAddress = '0x22025e2b843A22cC567863C270D24da29aC7B326';               // Address of the token contract
+const ownerAccount = '0x00796e910Bd0228ddF4cd79e3f353871a61C351C';                  // Address of the contract owner
+
+const allBadges = {
+    1: siteUrl + 'badges/90_days.json',
+    2: siteUrl + 'badges/180_days.json',
+    3: siteUrl + 'badges/365_days.json',
+    4: siteUrl + 'badges/top_100.json',
+    5: siteUrl + 'badges/top_1000.json',
+}
+
+// Start the router
 const router = express.Router();
 
-const fetch = require('node-fetch');
+// Start web3
+const web3 = new Web3(Web3.givenProvider || new Web3.providers.WebsocketProvider(provider));
+let contract;
+let badges = {};
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
-    res.send('Synthetix Badges API');
+    res.json({msg:'Synthetix Badges API'});
 });
 
-/* GET home page. */
-router.get('/:address', function(req, res, next) {
-    
+/* GET all claimable badges. */
+router.get('/badges/:address', function(req, res, next) {
     const address = req.params.address;
-    let badges = {};
     
-    staking(address, badges, (badges) => {
-        whale(address, badges, (badges) => {
-            console.log('badges', badges);
-            let returnBadges = []
-            for(let i in badges) {
-                returnBadges.push(siteUrl + i + '.json');
-            }
-            res.json(returnBadges);
+    initContract().then(() => {
+        getBadges(address, badges, (badges) => {
+            filterQualifyingBadges(address, badges, (badges) => {
+                let returnBadges = [];
+                for (let i = 0; i < badges.length; i++) {
+                    returnBadges.push(allBadges[badges[i]]);
+                }
+                res.json(returnBadges);
+            });
         });
     });
     
 });
 
+/* GET one claimable badge. */
+router.get('/badge/:address', async function(req, res, next) {
+    const address = req.params.address;
+    
+    initContract().then(() => {
+        getBadges(address, badges, (badges) => {
+            getNextBadge(address, badges).then((response) => {
+                res.json(response);
+            });
+        });
+    });
+    
+});
+
+// Initialize the contract to check on our existing badge status
+const initContract = async function() {
+    const response = await fetch(siteUrl + 'contracts/SynthBadge.json');
+    const json = await response.json();
+    contract = TruffleContract(json);
+    contract.setProvider(web3.currentProvider);
+    contract.defaults({
+        from: ownerAccount,
+        gasPrice: 1000000000
+    });
+}
+
+// Returns array of qualifying badges
+const filterQualifyingBadges = async function(address, badges, callback) {
+    try {
+        let deployed = await contract.deployed();
+        let myBadges = await deployed.getUserBadges.call(address, {from: ownerAccount});
+        let qualifyingBadges = [];
+        for(let i=0; i<badges.length; i++) {
+            if(!myBadges.find((elem) => elem === badges[i])) {
+                qualifyingBadges.push(badges[i]);
+            }
+        }
+        callback(qualifyingBadges);
+    } catch(err){
+        console.error(err)
+    }
+};
+
+// Returns one qualifying badge
+const getNextBadge = async function(address, badges) {
+    try {
+        let deployed = await contract.deployed();
+        let myBadges = await deployed.getUserBadges.call(address, {from: ownerAccount});
+        for(let i=0; i<badges.length; i++) {
+            if(!myBadges.find((elem) => elem === badges[i])) {
+                return {id:badges[i]};
+            }
+        }
+        return {id:0};
+    } catch(err){
+        console.error(err)
+    }
+};
+
+// Gets all badges that might qualify
+const getBadges = async function(address, badges, callback) {
+    staking(address, badges, (badges) => {
+        whale(address, badges, (badges) => {
+            let returnBadges = []
+            for(let i in badges) {
+                returnBadges.push(i);
+            }
+            callback(returnBadges);
+        });
+    });
+}
+
 // Check on their staking history
-async function staking(address, badges, callback) {
+const staking = async function(address, badges, callback) {
     const debtHistoryQuery = {
         query: `{debtSnapshots(where:{ account_in: ["${address}"] },orderBy: block,orderDirection: desc){timestamp}}`,
         variables: null,
@@ -40,13 +132,13 @@ async function staking(address, badges, callback) {
             const month = 60 * 60 * 24 * 30 * 1000;
             for(let i=0; i<response.debtSnapshots.length; i++) {
                 if(response.debtSnapshots[i].timestamp*1000 < (Date.now() - month*3) ) {
-                    badges['90_days'] = true;
+                    badges[1] = true;
                 }
                 if(response.debtSnapshots[i].timestamp*1000 < (Date.now() - month*6) ) {
-                    badges['180_days'] = true;
+                    badges[2] = true;
                 }
                 if(response.debtSnapshots[i].timestamp*1000 < (Date.now() - month*12) ) {
-                    badges['365_days'] = true;
+                    badges[3] = true;
                 }
             }
         }
@@ -55,7 +147,7 @@ async function staking(address, badges, callback) {
 }
 
 // Check on their whale status
-async function whale(address, badges, callback) {
+const whale = async function(address, badges, callback) {
     const whaleStatusQuery = {
         query: `{snxholders(orderBy: balanceOf, orderDirection: desc, first: 1000) {id balanceOf }}`,
         variables: null,
@@ -65,9 +157,9 @@ async function whale(address, badges, callback) {
             for(let i=0; i<response.snxholders.length; i++) {
                 if(response.snxholders[i].id === address) {
                     if(i<100) {
-                        badges['top_100'] = true;
+                        badges[4] = true;
                     }
-                    badges['top_1000'] = true;
+                    badges[5] = true;
                 }
             }
         }
@@ -75,7 +167,8 @@ async function whale(address, badges, callback) {
     });
 }
 
-async function graphQuery(query, callback) {
+// Query The Graph -- Only queries mainnet but rewards on whatever network you're connected to
+const graphQuery = async function(query, callback) {
     const body = JSON.stringify(query);
     fetch('https://api.thegraph.com/subgraphs/name/synthetixio-team/synthetix', {
         method: 'POST',
