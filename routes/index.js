@@ -99,7 +99,7 @@ const getNextBadge = async function(address, badges) {
         let myBadges = await deployed.getUserBadges.call(address, {from: ownerAccount});
         for(let i=0; i<badges.length; i++) {
             if(!myBadges.find((elem) => elem === badges[i])) {
-                return {id:badges[i]};
+                return {id:parseInt(badges[i])};
             }
         }
         return {id:0};
