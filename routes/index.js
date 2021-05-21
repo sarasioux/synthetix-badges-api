@@ -5,7 +5,7 @@ const Web3 = require('web3');
 const TruffleContract = require("@truffle/contract");
 
 // Constants
-const siteUrl = 'http://localhost:8080/';
+const siteUrl = 'https://synthetixbadges.netlify.app/';
 const provider = 'wss://kovan.infura.io/ws/v3/8f868fcca6aa44febce5b6a085aa23f2';
 const contractAddress = '0x22025e2b843A22cC567863C270D24da29aC7B326';               // Address of the token contract
 const ownerAccount = '0x00796e910Bd0228ddF4cd79e3f353871a61C351C';                  // Address of the contract owner
