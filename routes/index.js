@@ -21,8 +21,6 @@ const allBadges = {
 // Start the router
 const router = express.Router();
 
-// Start web3
-const web3 = new Web3(Web3.givenProvider || new Web3.providers.WebsocketProvider(provider));
 let contract;
 let badges = {};
 
@@ -65,6 +63,7 @@ router.get('/badge/:address', async function(req, res, next) {
 
 // Initialize the contract to check on our existing badge status
 const initContract = async function() {
+    const web3 = new Web3(Web3.givenProvider || new Web3.providers.WebsocketProvider(provider));
     const response = await fetch(siteUrl + 'contracts/SynthBadge.json');
     const json = await response.json();
     contract = TruffleContract(json);
