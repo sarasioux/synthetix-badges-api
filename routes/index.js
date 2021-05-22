@@ -5,10 +5,9 @@ const Web3 = require('web3');
 const TruffleContract = require("@truffle/contract");
 
 // Constants
-const siteUrl = 'https://synthetixbadges.netlify.app/';
+const siteUrl = 'https://synthetixbadges.netlify.com/';
 const provider = 'wss://kovan.infura.io/ws/v3/8f868fcca6aa44febce5b6a085aa23f2';
-const contractAddress = '0x22025e2b843A22cC567863C270D24da29aC7B326';               // Address of the token contract
-const ownerAccount = '0x00796e910Bd0228ddF4cd79e3f353871a61C351C';                  // Address of the contract owner
+const ownerAccount = '0x00796e910Bd0228ddF4cd79e3f353871a61C351C';                  // Address of the current queryer
 
 const allBadges = {
     1: siteUrl + 'badges/90_days.json',
@@ -80,8 +79,15 @@ const filterQualifyingBadges = async function(address, badges, callback) {
         let deployed = await contract.deployed();
         let myBadges = await deployed.getUserBadges.call(address, {from: ownerAccount});
         let qualifyingBadges = [];
+        let badgeFound = false;
         for(let i=0; i<badges.length; i++) {
-            if(!myBadges.find((elem) => elem === badges[i])) {
+            badgeFound=false;
+            for(let k=0; k<myBadges.length; k++) {
+                if(parseInt(myBadges[k]) === parseInt(badges[i])) {
+                    badgeFound=true;
+                }
+            }
+            if(!badgeFound) {
                 qualifyingBadges.push(badges[i]);
             }
         }
@@ -96,8 +102,15 @@ const getNextBadge = async function(address, badges) {
     try {
         let deployed = await contract.deployed();
         let myBadges = await deployed.getUserBadges.call(address, {from: ownerAccount});
+        let badgeFound = false;
         for(let i=0; i<badges.length; i++) {
-            if(!myBadges.find((elem) => elem === badges[i])) {
+            badgeFound=false;
+            for(let k=0; k<myBadges.length; k++) {
+                if(parseInt(myBadges[k]) === parseInt(badges[i])) {
+                    badgeFound=true;
+                }
+            }
+            if(!badgeFound) {
                 return {id:parseInt(badges[i])};
             }
         }
